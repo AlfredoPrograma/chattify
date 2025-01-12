@@ -1,7 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net"
 )
 
@@ -14,7 +17,15 @@ type server struct {
 func (s *server) handleConn(conn net.Conn) {
 	for {
 		buf := make([]byte, BUF_SIZE)
-		conn.Read(buf)
+		_, err := conn.Read(buf)
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				log.Printf("connection with peer %v closed\n", conn.RemoteAddr())
+				break
+			}
+		}
+
 		fmt.Println(string(buf))
 	}
 }
