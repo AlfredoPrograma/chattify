@@ -22,7 +22,7 @@ type server struct {
 }
 
 func (s *server) registerConn(conn net.Conn) {
-	log.Printf("connection with peer %v started\n", conn.RemoteAddr())
+	log.Printf("[SYSTEM]: connection with peer %v started\n", conn.RemoteAddr())
 	s.connections[conn.RemoteAddr().String()] = conn
 }
 
@@ -32,7 +32,7 @@ func (s *server) closeConn(addr string, disconnectKind int) {
 	conn, ok := s.connections[addr]
 
 	if !ok {
-		log.Printf("cannot close connection with unregistered peer %v\n", addr)
+		log.Printf("[SYSTEM]: cannot close connection with unregistered peer %v\n", addr)
 		return
 	}
 
@@ -40,13 +40,32 @@ func (s *server) closeConn(addr string, disconnectKind int) {
 		err := conn.Close()
 
 		if err != nil {
-			log.Printf("cannot close connection with peer %v\n", addr)
+			log.Printf("[SYSTEM]: cannot close connection with peer %v\n", addr)
 		}
 	}
 
 	delete(s.connections, addr)
 
-	log.Printf("connection with peer %v closed\n", addr)
+	log.Printf("[SYSTEM]: connection with peer %v closed\n", addr)
+	defer s.mu.Unlock()
+}
+
+func (s *server) broadcast(msg []byte, conn net.Conn) {
+	log.Printf("[PEER (%s)]: %s", conn.RemoteAddr().String(), msg)
+	s.mu.Lock()
+
+	for addr, clientConn := range s.connections {
+		if addr == conn.RemoteAddr().String() {
+			continue
+		}
+
+		_, err := clientConn.Write(msg)
+
+		if err != nil {
+			log.Printf("[SYSTEM]: cannot write over peer %v\n", conn.RemoteAddr())
+		}
+	}
+
 	defer s.mu.Unlock()
 }
 
@@ -62,12 +81,7 @@ func (s *server) handleConn(conn net.Conn) {
 			}
 		}
 
-		_, err = conn.Write(buf)
-
-		if err != nil {
-			log.Printf("cannot write over peer %v\n", conn.RemoteAddr())
-			panic(err)
-		}
+		s.broadcast(buf, conn)
 	}
 }
 
