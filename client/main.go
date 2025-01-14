@@ -3,7 +3,8 @@ package main
 import (
 	"io"
 	"net"
-	"os"
+
+	"github.com/rivo/tview"
 )
 
 const BUF_SIZE = 1024 // Around 256 characters
@@ -52,8 +53,42 @@ func (c *client) Run() {
 	select {}
 }
 
-func main() {
-	c := client{os.Stdin, os.Stdout}
+type chattify struct {
+	pages *tview.Pages
+	term  *tview.Application
+}
 
-	c.Run()
+func newChattify() chattify {
+	pages := tview.NewPages()
+
+	return chattify{pages, tview.NewApplication().SetRoot(pages, true)}
+}
+
+func (app *chattify) loadPages() {
+	loginPage := newLoginPage()
+	loginPage.build(app.pages)
+
+	chatPage := newChatPage()
+	chatPage.build(app.pages)
+
+	app.pages.AddPage(LOGIN_PAGE, loginPage, true, true)
+	app.pages.AddPage(CHAT_PAGE, chatPage, true, false)
+}
+
+func (app *chattify) Run() error {
+	app.loadPages()
+
+	if err := app.term.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	app := newChattify()
+
+	if err := app.Run(); err != nil {
+		panic(err)
+	}
 }
