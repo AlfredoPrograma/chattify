@@ -56,17 +56,30 @@ func (c *client) Run() {
 type chattify struct {
 	pages *tview.Pages
 	term  *tview.Application
+	conn  *net.Conn
 }
 
 func newChattify() chattify {
 	pages := tview.NewPages()
 
-	return chattify{pages, tview.NewApplication().SetRoot(pages, true)}
+	return chattify{pages, tview.NewApplication().SetRoot(pages, true), nil}
+}
+
+func (app *chattify) connectToHost(username string, host string, token string, done chan bool) {
+	conn, err := net.Dial("tcp", host)
+
+	if err != nil {
+		done <- false
+		return
+	}
+
+	app.conn = &conn
+	done <- true
 }
 
 func (app *chattify) loadPages() {
 	loginPage := newLoginPage()
-	loginPage.build(app.pages)
+	loginPage.build(app)
 
 	chatPage := newChatPage()
 	chatPage.build(app.pages)

@@ -26,9 +26,12 @@ func newLoginPage() loginPage {
 	}
 }
 
-func (p *loginPage) build(pages *tview.Pages) {
+func (p *loginPage) build(app *chattify) {
 	root, ok := p.Primitive.(*tview.Flex)
 	form := tview.NewForm()
+
+	errorConnection := tview.NewTextView()
+	errorConnection.SetText("ERROR CONNECTION")
 
 	if !ok {
 		panic("invalid primitive for login page")
@@ -45,7 +48,17 @@ func (p *loginPage) build(pages *tview.Pages) {
 	})
 
 	form.AddButton("Sign in", func() {
-		pages.SwitchToPage(CHAT_PAGE)
+		waitCh := make(chan bool)
+		go app.connectToHost(p.username, p.host, p.token, waitCh)
+
+		connected := <-waitCh
+
+		if connected {
+			app.pages.SwitchToPage(CHAT_PAGE)
+		} else {
+			root.RemoveItem(form)
+			root.AddItem(errorConnection, 0, 1, true)
+		}
 	})
 
 	form.Box.SetBackgroundColor(0).SetBorder(true)
